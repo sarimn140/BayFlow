@@ -1,0 +1,11 @@
+# Prettier also honours .gitignore (node_modules, .next, coverage, next-env.d.ts, .env*).
+
+# Generated from the API's OpenAPI document (D76) — never edited by hand.
+src/lib/api/openapi.json
+src/lib/api/schema.d.ts
+
+# Written by package managers and tools.
+pnpm-lock.yaml
+pnpm-workspace.yaml
+# Managed block re-written by `next dev`.
+AGENTS.md

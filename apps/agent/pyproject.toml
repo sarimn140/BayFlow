@@ -1,0 +1,83 @@
+[project]
+name = "bayflow-agent"
+version = "0.1.0"
+description = "BayFlow AI Front Desk: a LiveKit Agents voice worker (spec 05, D58)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "google-genai>=1.0",
+    "httpx>=0.28.1",
+    "livekit-agents[google,openai]>=1.8",
+    "openai>=1.50",
+    "pydantic>=2.14.0",
+    "pydantic-settings>=2.15.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.10",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = "--strict-markers -ra --import-mode=importlib"
+
+# ---------------------------------------------------------------------------
+# Ruff (spec 12 §1.1)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # Pyflakes
+    "I",       # isort
+    "N",       # pep8-naming
+    "UP",      # pyupgrade
+    "B",       # flake8-bugbear
+    "SIM",     # flake8-simplify
+    "C4",      # flake8-comprehensions
+    "RET",     # flake8-return
+    "PERF",    # Perflint
+    "ASYNC",   # flake8-async: blocking calls inside async code
+    "S",       # flake8-bandit: security (incl. S608 string-built SQL)
+    "DTZ",     # flake8-datetimez: naive datetimes
+    "T20",     # flake8-print: no print()
+    "ERA",     # eradicate: no commented-out code
+    "TID",     # flake8-tidy-imports: banned APIs below (TID251)
+    "PGH",     # pygrep-hooks: PGH003 forbids blanket `# type: ignore`
+    "PT",      # flake8-pytest-style
+    "C90",     # mccabe complexity
+    "PL",      # Pylint: size limits below
+    "RUF",     # Ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "PLR2004"]
+"src/bayflow_agent/prompts.py" = ["E501"]  # prompt text is spec 05 §4.9/§6.2 verbatim
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 6
+max-statements = 40
+max-branches = 12
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+ignore_missing_imports = true

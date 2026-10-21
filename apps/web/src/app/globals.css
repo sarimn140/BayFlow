@@ -1,0 +1,779 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+/*
+ * Themes (D93, spec 09 §3.11): every token below has a light value in `:root` and a dark value in
+ * `.dark`, so components only ever use the tokens. A Light / Dark switch lives in every
+ * header; `.dark` also scopes always-dark surfaces such as the auth brand panel.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens (DESIGN.md). Palette, type, radii and shadows follow GarageBox's product and
+ * marketing themes (values only), with AA corrections where theirs fall short (noted inline);
+ * booking phases per spec 09 §3.3. Hex on purpose: this file is the only place colours are
+ * written. Contrast ratios are WCAG 2.x against white unless stated.
+ */
+:root {
+  color-scheme: light;
+  /* Base radius = `rounded-lg` (12px). The full scale is explicit in @theme below. */
+  --radius: 0.75rem;
+
+  /* Surfaces: canvas (behind cards) → card (white) → layer/paper (tinted wells, dialog bodies). */
+  --canvas: #dde3ee;
+  --layer: #e2e7f1;
+  --layer-hover: #d9dfeb;
+  --layer-accent: #d3dae8;
+  --layer-selected: #d0d8ea;
+  --field: #e4e9f2;
+  --field-hover: #dbe1ed;
+  --border-subtle: #d3d9e6;
+  /* Stone ≥ 3 : 1 edge (3.65 on white, 3.39 on canvas, 3.24 on paper) for controls (WCAG 1.4.11) */
+  --border-strong: #6c768c;
+  /* GarageBox #78716C, slightly darker so small text passes on every light surface it sits on:
+     white 5.16, canvas 4.79, paper 4.59, secondary 4.69, muted 4.94 (theirs: 4.80 / 4.46 / 4.27). */
+  --text-helper: #566074;
+  /* Scrim behind dialogs and sheets (navy 40 %, blurred by the overlay components) */
+  --overlay: rgb(15 22 38 / 0.45);
+  --hero-grid-line: rgba(120,134,165,0.18);
+
+  /* Motion */
+  --ease-productive: cubic-bezier(0.2, 0, 0.38, 0.9);
+  --ease-entrance: cubic-bezier(0, 0, 0.38, 0.9);
+  --ease-exit: cubic-bezier(0.2, 0, 1, 0.9);
+  --duration-fast-01: 70ms;
+  --duration-fast-02: 110ms;
+  --duration-moderate-01: 150ms;
+  --duration-moderate-02: 240ms;
+
+  /* Elevation (GarageBox product theme): warm stone shadows; the primary glow on hover */
+  --shadow-card: 6px 6px 14px rgb(163 177 198 / 0.55), -6px -6px 14px rgb(255 255 255 / 0.8);
+  --shadow-dropdown: 12px 14px 32px rgb(130 145 175 / 0.45), -6px -6px 16px rgb(255 255 255 / 0.7);
+  --shadow-dialog: -30px 40px 80px -8px rgb(20 30 60 / 0.35);
+  --shadow-primary: 0 10px 22px 0 rgb(47 75 255 / 0.35);
+  --shadow-float: var(--shadow-dropdown);
+
+  /* shadcn base tokens */
+  --background: #e8ecf4;
+  --foreground: #141a28;
+  --card: #eef1f8;
+  --card-foreground: #141a28;
+  --popover: #eef1f8;
+  --popover-foreground: #141a28;
+  /* Primary = brand blue: pill buttons, checked controls, selected days. White on it 7.98. */
+  --primary: #2c47f2;
+  --primary-foreground: #ffffff;
+  --primary-hover: #1f38d6;
+  --secondary: #e3e8f1;
+  --secondary-foreground: #141a28;
+  --muted: #e5eaf2;
+  --muted-foreground: #38415a;
+  --accent: #dbe2f0;
+  --accent-foreground: #141a28;
+  /* Error text and borders: GarageBox #DC2626 nudged to #DA2626 so it also passes on the canvas
+     (4.55; 4.90 on white). Solid danger fills keep #DC2626 (white label 4.83). */
+  --destructive: #da2626;
+  --destructive-foreground: #ffffff;
+  --destructive-strong: #dc2626;
+  --border: #cdd4e2;
+  --input: #6c768c;
+  /* Focus ring: brand blue, 7.98 on white, 7.42 on the canvas */
+  --ring: #2c47f2;
+
+  /* Neutral steps beyond shadcn's set (stone). subtle-foreground is decoration only (2.5). */
+  --subtle-foreground: #9aa3b6;
+  --border-faint: #d6dce9;
+  --border-medium: #c3cbdb;
+
+  /* Brand blue: a fill (buttons, selected chips) and an ink (links, icons, text) so both stay AA
+     in dark mode; subtle = tinted surfaces (6.67 for the ink on it). */
+  --brand-blue: #2c47f2;
+  --brand-blue-hover: #1f38d6;
+  --brand-blue-foreground: #ffffff;
+  --brand-blue-ink: #2038d4;
+  --brand-blue-subtle: #dce3fb;
+  /* Brand green. GarageBox's #10B981 fails with white (2.54), so the fill and green text use
+     #047857 (5.48); the bright green is `brand-green-accent`, for decoration only. */
+  --brand-green: #047857;
+  --brand-green-hover: #065f46;
+  --brand-green-foreground: #ffffff;
+  --brand-green-accent: #10b981;
+
+  /* BayFlow extensions. The orange is the "attention" ink only (action-needed chips). */
+  --cta: #bd490a;
+  --cta-foreground: #ffffff;
+  --cta-hover: #a53f08;
+  --brand-navy: #0f1626;
+  --brand-orange: #e8590c;
+  --brand-orange-on-dark: #fd7e14;
+  --attention: #fff4e6;
+  --attention-border: #ffc078;
+  --success-subtle: #d9f4eb;
+  --success-ink: #047857;
+  --warning-subtle: #fcf3d7;
+  --warning-ink: #854d0e;
+  --danger-subtle: #fce1e1;
+  --danger-ink: #b91c1c;
+  --info-subtle: #d6ddfd;
+  --info-ink: #1d4ed8;
+
+  /* App top bar: white with dark text (formerly the navy POS header) */
+  --nav: #eaeef6;
+  --nav-foreground: #141a28;
+  --nav-muted: #38415a;
+  --nav-hover: #dbe2f0;
+  --role-chip: #dce3fb;
+
+  /* App sidebar (POS, admin): white; hover #EAEEF3; active #BFDBFE with dark text (12.3) */
+  --sidebar: #e9edf5;
+  --sidebar-foreground: #141a28;
+  --sidebar-primary: #2c47f2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #cdd8fa;
+  --sidebar-accent-foreground: #1c1917;
+  --sidebar-border: #d3d9e6;
+  --sidebar-ring: #2c47f2;
+
+  /* Charts: the phase inks, each ≥ 3 : 1 on white */
+  --chart-1: #1d4ed8;
+  --chart-2: #6d28d9;
+  --chart-3: #a16207;
+  --chart-4: #0e7490;
+  --chart-5: #a21caf;
+
+  /* Booking status chips (spec 09 §3.3): one hue per phase, GarageBox "soft" style = the hue at
+     16 % on white, a 32 % border and the dark ink (every pair ≥ 4.6 : 1). */
+  --status-intake-bg: #d6ddfd;
+  --status-intake-fg: #1d4ed8;
+  --status-intake-border: #adbbfa;
+  --status-inspection-bg: #ece5fe;
+  --status-inspection-fg: #6d28d9;
+  --status-inspection-border: #dacbfc;
+  --status-estimate-bg: #fcf3d7;
+  --status-estimate-fg: #854d0e;
+  --status-estimate-border: #f8e7b0;
+  --status-estimate-rejected-bg: #fce1e1;
+  --status-estimate-rejected-fg: #b91c1c;
+  --status-estimate-rejected-border: #fac3c3;
+  --status-parts-bg: #d7f3f8;
+  --status-parts-fg: #0e7490;
+  --status-parts-border: #afe8f1;
+  --status-repair-qc-bg: #f9e1fc;
+  --status-repair-qc-fg: #a21caf;
+  --status-repair-qc-border: #f3c4fa;
+  --status-handover-bg: #d9f4eb;
+  --status-handover-fg: #047857;
+  --status-handover-border: #b3e9d7;
+  --status-closed-bg: #e9e8e7;
+  --status-closed-fg: #44403c;
+  --status-closed-border: #d6d3d1;
+}
+
+/*
+ * Dark theme (D93): a stone-black version of the same palette (canvas darker than cards); brand
+ * fills keep their hue; text inks are lightened so every text pair stays at WCAG AA (spec 09
+ * §5.1). Forced off for now, but kept coherent with the light values above.
+ */
+.dark {
+  color-scheme: dark;
+
+  --canvas: #17191d;
+  --layer: #31353c;
+  --layer-hover: #383c44;
+  --layer-accent: #3b4049;
+  --layer-selected: #3f4550;
+  --field: #202328;
+  --field-hover: #262a30;
+  --border-subtle: #30343b;
+  --border-strong: #7d869a;
+  --text-helper: #a4abbb;
+  --overlay: rgb(5 7 12 / 0.75);
+  --hero-grid-line: rgba(160,170,195,0.07);
+  --shadow-card: 6px 6px 14px rgb(10 11 14 / 0.55), -4px -4px 12px rgb(255 255 255 / 0.035);
+  --shadow-dropdown: 12px 14px 32px rgb(0 0 0 / 0.55), -3px -3px 10px rgb(255 255 255 / 0.04);
+  --shadow-dialog: -30px 40px 80px -8px rgb(0 0 0 / 0.7);
+  --shadow-primary: 0 10px 22px 0 rgb(77 107 255 / 0.4);
+  --shadow-float: var(--shadow-dropdown);
+
+  --background: #23262c;
+  --foreground: #eceef4;
+  --card: #2b2e35;
+  --card-foreground: #eceef4;
+  --popover: #2b2e35;
+  --popover-foreground: #eceef4;
+  /* Brand-blue fill as in light (white on #2a5cff is 5.16) */
+  --primary: #4a67ff;
+  --primary-foreground: #ffffff;
+  --primary-hover: #6580ff;
+  --secondary: #31353c;
+  --secondary-foreground: #f5f5f4;
+  --muted: #2f3239;
+  --muted-foreground: #c8cddb;
+  --accent: #363a42;
+  --accent-foreground: #f5f5f4;
+  --destructive: #f87171;
+  --destructive-foreground: #ffffff;
+  --destructive-strong: #dc2626;
+  --border: #3b4049;
+  --input: #7d869a;
+  --ring: #a9bcff;
+
+  --subtle-foreground: #7d869a;
+  --border-faint: #30343b;
+  --border-medium: #444a55;
+
+  --brand-blue: #4a67ff;
+  --brand-blue-hover: #6580ff;
+  --brand-blue-foreground: #ffffff;
+  --brand-blue-ink: #a9bcff;
+  --brand-blue-subtle: #222c5e;
+  /* Bright green and orange read as text on dark surfaces; their fills take a dark label
+     (`text-brand-green-foreground`, `text-cta-foreground`), never a hard-coded white. */
+  --brand-green: #34d399;
+  --brand-green-hover: #6ee7b7;
+  --brand-green-foreground: #1c1917;
+  --brand-green-accent: #10b981;
+
+  --cta: #fd7e14;
+  --cta-foreground: #1c1917;
+  --cta-hover: #ff922b;
+  --brand-navy: #0f1626;
+  --brand-orange: #e8590c;
+  --brand-orange-on-dark: #fd7e14;
+  --attention: #2a1a0c;
+  --attention-border: #7a3f10;
+  --success-subtle: #0d2a1a;
+  --success-ink: #6ee7b7;
+  --warning-subtle: #2a220c;
+  --warning-ink: #fde047;
+  --danger-subtle: #2c1215;
+  --danger-ink: #fca5a5;
+  --info-subtle: #172554;
+  --info-ink: #93c5fd;
+
+  --nav: #202328;
+  --nav-foreground: #eceef4;
+  --nav-muted: #c8cddb;
+  --nav-hover: #2d3038;
+  --role-chip: #2f3239;
+
+  --sidebar: #202328;
+  --sidebar-foreground: #eceef4;
+  --sidebar-primary: #4a67ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #26336f;
+  --sidebar-accent-foreground: #f5f5f4;
+  --sidebar-border: #2d3038;
+  --sidebar-ring: #a9bcff;
+
+  --chart-1: #93c5fd;
+  --chart-2: #c4b5fd;
+  --chart-3: #fde047;
+  --chart-4: #67e8f9;
+  --chart-5: #f0abfc;
+
+  --status-intake-bg: #172554;
+  --status-intake-fg: #93c5fd;
+  --status-intake-border: #1e3a8a;
+  --status-inspection-bg: #2e1065;
+  --status-inspection-fg: #c4b5fd;
+  --status-inspection-border: #4c1d95;
+  --status-estimate-bg: #2a220c;
+  --status-estimate-fg: #fde047;
+  --status-estimate-border: #6b5513;
+  --status-estimate-rejected-bg: #2c1215;
+  --status-estimate-rejected-fg: #fca5a5;
+  --status-estimate-rejected-border: #7f1d1d;
+  --status-parts-bg: #083344;
+  --status-parts-fg: #67e8f9;
+  --status-parts-border: #155e75;
+  --status-repair-qc-bg: #4a044e;
+  --status-repair-qc-fg: #f0abfc;
+  --status-repair-qc-border: #86198f;
+  --status-handover-bg: #022c22;
+  --status-handover-fg: #6ee7b7;
+  --status-handover-border: #065f46;
+  --status-closed-bg: #292524;
+  --status-closed-fg: #d6d3d1;
+  --status-closed-border: #57534e;
+}
+
+/* Expose the tokens as Tailwind utilities (`bg-primary`, `text-cta`, `border-status-parts-border`, …). */
+@theme inline {
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-handwriting: var(--font-script), cursive;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-strong: var(--destructive-strong);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-border-faint: var(--border-faint);
+  --color-border-medium: var(--border-medium);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-blue-hover: var(--brand-blue-hover);
+  --color-brand-blue-foreground: var(--brand-blue-foreground);
+  --color-brand-blue-ink: var(--brand-blue-ink);
+  --color-brand-blue-subtle: var(--brand-blue-subtle);
+  --color-brand-green: var(--brand-green);
+  --color-brand-green-hover: var(--brand-green-hover);
+  --color-brand-green-foreground: var(--brand-green-foreground);
+  --color-brand-green-accent: var(--brand-green-accent);
+
+  --color-cta: var(--cta);
+  --color-cta-foreground: var(--cta-foreground);
+  --color-cta-hover: var(--cta-hover);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-on-dark: var(--brand-orange-on-dark);
+  --color-attention: var(--attention);
+  --color-attention-border: var(--attention-border);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-ink: var(--success-ink);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-danger-ink: var(--danger-ink);
+  --color-info-subtle: var(--info-subtle);
+  --color-info-ink: var(--info-ink);
+
+  --color-canvas: var(--canvas);
+  --color-layer: var(--layer);
+  --color-layer-hover: var(--layer-hover);
+  --color-layer-accent: var(--layer-accent);
+  --color-layer-selected: var(--layer-selected);
+  --color-field: var(--field);
+  --color-field-hover: var(--field-hover);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-helper: var(--text-helper);
+  --color-overlay: var(--overlay);
+  --ease-productive: var(--ease-productive);
+  --ease-entrance: var(--ease-entrance);
+  --ease-exit: var(--ease-exit);
+
+  /* Named elevations: `shadow-dropdown` (menus, popovers, selects), `shadow-dialog` (modals),
+     `shadow-glow` (primary button hover); `shadow-float` is the older name of dropdown. Cards use
+     `shadow-xs`, which is GarageBox's card shadow (scale below). No `shadow-card` /
+     `shadow-primary` utility on purpose: those names are the `card` / `primary` shadow colours. */
+  --shadow-dropdown: var(--shadow-dropdown);
+  --shadow-dialog: var(--shadow-dialog);
+  --shadow-glow: var(--shadow-primary);
+  --shadow-float: var(--shadow-float);
+
+  --color-nav: var(--nav);
+  --color-nav-foreground: var(--nav-foreground);
+  --color-nav-muted: var(--nav-muted);
+  --color-nav-hover: var(--nav-hover);
+  --color-role-chip: var(--role-chip);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-status-intake-bg: var(--status-intake-bg);
+  --color-status-intake-fg: var(--status-intake-fg);
+  --color-status-intake-border: var(--status-intake-border);
+  --color-status-inspection-bg: var(--status-inspection-bg);
+  --color-status-inspection-fg: var(--status-inspection-fg);
+  --color-status-inspection-border: var(--status-inspection-border);
+  --color-status-estimate-bg: var(--status-estimate-bg);
+  --color-status-estimate-fg: var(--status-estimate-fg);
+  --color-status-estimate-border: var(--status-estimate-border);
+  --color-status-estimate-rejected-bg: var(--status-estimate-rejected-bg);
+  --color-status-estimate-rejected-fg: var(--status-estimate-rejected-fg);
+  --color-status-estimate-rejected-border: var(--status-estimate-rejected-border);
+  --color-status-parts-bg: var(--status-parts-bg);
+  --color-status-parts-fg: var(--status-parts-fg);
+  --color-status-parts-border: var(--status-parts-border);
+  --color-status-repair-qc-bg: var(--status-repair-qc-bg);
+  --color-status-repair-qc-fg: var(--status-repair-qc-fg);
+  --color-status-repair-qc-border: var(--status-repair-qc-border);
+  --color-status-handover-bg: var(--status-handover-bg);
+  --color-status-handover-fg: var(--status-handover-fg);
+  --color-status-handover-border: var(--status-handover-border);
+  --color-status-closed-bg: var(--status-closed-bg);
+  --color-status-closed-fg: var(--status-closed-fg);
+  --color-status-closed-border: var(--status-closed-border);
+}
+
+/*
+ * Radius and shadow scales (GarageBox). Static values, also emitted as CSS variables
+ * (`var(--radius-md)`, `var(--shadow-md)`) for arbitrary values.
+ * Radii: sm 6 · md 8 · lg 12 · xl 16 · 2xl 20 · 3xl 24 · 4xl 32 px. Buttons and chips are
+ * rounded-full; inputs and menus lg; product cards 2xl; dialogs 3xl.
+ * Shadows: Tailwind's ramp recoloured with GarageBox's warm stone (#78716C at 16 %); xs is their
+ * card shadow and `shadow-md shadow-primary/24` is their primary-button glow.
+ */
+@theme static {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  --shadow-2xs: 0 1px 0 0 rgb(120 113 108 / 0.12);
+  --shadow-xs: var(--shadow-card);
+  --shadow-sm: var(--shadow-card);
+  --shadow-md: 0 8px 16px 0 rgb(120 113 108 / 0.16);
+  --shadow-lg: 0 12px 24px -4px rgb(120 113 108 / 0.16);
+  --shadow-xl: 0 20px 40px -4px rgb(120 113 108 / 0.16);
+  --shadow-2xl: 0 24px 48px 0 rgb(120 113 108 / 0.16);
+}
+
+@layer base {
+  * {
+    /* Full-opacity brand-blue focus outline (WCAG 1.4.11, spec 09 §5.2). */
+    @apply border-border outline-ring;
+  }
+  html {
+    /* Keep focused/anchored content clear of the 64px sticky app header (WCAG 2.4.11). */
+    scroll-padding-top: 5rem;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+  ::selection {
+    background: var(--brand-blue);
+    color: #fff;
+  }
+  /* Thin, neutral scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  /* Sora display type for headings, heavier as they grow (DESIGN.md "Type"). A weight class on the
+     element (font-semibold, …) still wins. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+  h1,
+  h2 {
+    font-weight: 800;
+  }
+  h3,
+  h4,
+  h5 {
+    font-weight: 700;
+  }
+  h6 {
+    font-weight: 600;
+  }
+}
+
+/* The landing page, its header and footer and the booking flow: the same radius as the app,
+   kept so those screens stay pinned to it whatever the app default becomes. */
+.marketing {
+  --radius: 0.75rem;
+}
+
+/*
+ * Legacy type utilities from the Carbon period (no letter-spacing any more), restyled to the
+ * current type so older markup still looks right. New screens use the recipes in DESIGN.md.
+ */
+@utility type-label-01 {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  font-weight: 500;
+}
+@utility type-helper-01 {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--text-helper);
+}
+@utility type-body-compact-01 {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+@utility type-body-01 {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+@utility type-heading-compact-01 {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  font-weight: 600;
+}
+@utility type-heading-compact-02 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+@utility type-heading-03 {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+}
+@utility type-heading-04 {
+  font-family: var(--font-heading);
+  font-size: 1.875rem;
+  line-height: 2.375rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+@utility type-heading-05 {
+  font-family: var(--font-heading);
+  font-size: 2.25rem;
+  line-height: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Legacy focus helper: the same brand-blue 2px ring as everything else. */
+@utility carbon-focus {
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* The handwritten accent (Edu NSW ACT Foundation): upright, at its heaviest weight, as GarageBox
+   sets it. The family has no italic, so a stray `italic` class must not fake a slant. */
+.font-handwriting {
+  font-family: var(--font-script), cursive;
+  font-weight: 700;
+  font-synthesis-style: none;
+}
+
+.bg-grid-pattern {
+  --grid-line: rgba(226, 232, 240, 0.65);
+  background-size: 32px 32px;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+}
+.dark .bg-grid-pattern {
+  --grid-line: rgba(148, 163, 184, 0.08);
+}
+
+/*
+ * Hero band (DESIGN.md "Page hero"): grid paper fading out towards the bottom under a soft
+ * brand-blue glow, on a card-white surface. One per page at most (a greeting or a record header).
+ * Children stay above the decoration; the decoration follows the border radius.
+ */
+@utility bg-hero {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--card);
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  &::before {
+    background-image:
+      linear-gradient(to right, var(--hero-grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hero-grid-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(to bottom, #000 0%, transparent 85%);
+  }
+  &::after {
+    background-image: radial-gradient(
+      70% 120% at 50% -20%,
+      color-mix(in srgb, var(--brand-blue) 12%, transparent) 0%,
+      color-mix(in srgb, var(--brand-blue) 4%, transparent) 45%,
+      transparent 75%
+    );
+  }
+}
+
+/* Landing testimonials marquee: the track holds the list twice, so sliding -50% (minus half
+   the 1.5rem gap) loops seamlessly. Pauses on hover; static for reduced-motion users. */
+.reviews-marquee {
+  animation: reviews-marquee 60s linear infinite;
+}
+.reviews-marquee:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reviews-marquee {
+    animation: none;
+  }
+}
+@keyframes reviews-marquee {
+  to {
+    transform: translateX(calc(-50% - 0.75rem));
+  }
+}
+
+
+/*
+ * Soft-UI ("neumorphic") surfaces: raised controls lit from the top-left, pressed controls sunk
+ * in. Both themes share the recipe; only the light/shadow colours change with the theme.
+ */
+:root {
+  --neu-light: rgb(255 255 255 / 0.85);
+  --neu-dark: rgb(150 164 190 / 0.55);
+  --neu-edge: rgb(255 255 255 / 0.65);
+  --neu-fill-top: #f4f6fb;
+  --neu-fill-bottom: #e1e6f0;
+  --noise-opacity: 0.035;
+}
+.dark {
+  --neu-light: rgb(255 255 255 / 0.05);
+  --neu-dark: rgb(6 7 10 / 0.7);
+  --neu-edge: rgb(255 255 255 / 0.09);
+  --neu-fill-top: #343841;
+  --neu-fill-bottom: #272a31;
+  --noise-opacity: 0.06;
+}
+
+/* A raised panel or control. */
+@utility neu-raised {
+  background-image: linear-gradient(180deg, var(--neu-fill-top), var(--neu-fill-bottom));
+  box-shadow:
+    5px 6px 12px var(--neu-dark),
+    -4px -4px 10px var(--neu-light),
+    inset 0 1px 0 var(--neu-edge);
+}
+/* A card-sized raised surface (softer, larger shadows). */
+@utility neu-surface {
+  box-shadow:
+    10px 12px 28px var(--neu-dark),
+    -8px -8px 22px var(--neu-light),
+    inset 0 1px 0 var(--neu-edge);
+}
+/* A sunken field or a pressed control. */
+@utility neu-inset {
+  background-image: none;
+  box-shadow:
+    inset 3px 3px 7px var(--neu-dark),
+    inset -3px -3px 7px var(--neu-light);
+}
+
+/* Fine film-grain on the page background, as on the reference dark UI. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--noise-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Help agent typing dots. */
+@keyframes help-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* Theme switch: smooth colour change (skipped for reduced-motion users). */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-fade,
+  html.theme-fade *,
+  html.theme-fade *::before,
+  html.theme-fade *::after {
+    transition:
+      background-color 280ms ease,
+      border-color 280ms ease,
+      color 280ms ease,
+      box-shadow 280ms ease !important;
+  }
+}
+
+/* Coloured raised buttons: a top-lit gradient of the fill colour plus the soft-UI shadows. */
+@utility neu-primary {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--btn-fill, var(--primary)), white 18%),
+    var(--btn-fill, var(--primary)) 55%,
+    color-mix(in oklab, var(--btn-fill, var(--primary)), black 14%)
+  );
+  box-shadow:
+    5px 6px 12px var(--neu-dark),
+    -3px -3px 9px var(--neu-light),
+    inset 0 1px 0 rgb(255 255 255 / 0.38),
+    inset 0 -2px 5px rgb(0 0 0 / 0.18);
+}
+@utility neu-cta {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--cta), white 18%),
+    var(--cta) 55%,
+    color-mix(in oklab, var(--cta), black 14%)
+  );
+  box-shadow:
+    5px 6px 12px var(--neu-dark),
+    -3px -3px 9px var(--neu-light),
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    inset 0 -2px 5px rgb(0 0 0 / 0.2);
+}
+@utility neu-danger {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--destructive-strong), white 18%),
+    var(--destructive-strong) 55%,
+    color-mix(in oklab, var(--destructive-strong), black 14%)
+  );
+  box-shadow:
+    5px 6px 12px var(--neu-dark),
+    -3px -3px 9px var(--neu-light),
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    inset 0 -2px 5px rgb(0 0 0 / 0.2);
+}
+/* Pressed look: sunk in while held, and for toggled-on / open controls. */
+@utility neu-press {
+  &:active:not(:disabled),
+  &[aria-pressed='true'],
+  &[data-state='on'],
+  &[aria-expanded='true'] {
+    background-image: none;
+    box-shadow:
+      inset 3px 3px 7px var(--neu-dark),
+      inset -3px -3px 7px var(--neu-light);
+  }
+}

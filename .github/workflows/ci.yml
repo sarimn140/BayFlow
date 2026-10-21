@@ -1,0 +1,168 @@
+# BayFlow CI — the four required checks of spec 07 (§CI/CD) and spec 12 (§6): api, web, contract, secrets.
+# Railway's "Wait for CI" needs a workflow triggered by `push` on main (spec 07).
+#
+# Action versions and inputs, verified on GitHub on 2026-10-09 (releases API + action.yml/README at the tag):
+#   actions/checkout          v7.0.1  https://github.com/actions/checkout/releases/tag/v7.0.1
+#                                     input fetch-depth (action.yml at v7.0.1)
+#   actions/setup-node        v7.1.0  https://github.com/actions/setup-node/releases/tag/v7.1.0
+#                                     inputs node-version, cache, cache-dependency-path (action.yml at v7.1.0)
+#   pnpm/action-setup         v6.1.0  https://github.com/pnpm/action-setup/releases/tag/v6.1.0
+#                                     input package_json_file: path relative to the repo root; without `version`
+#                                     the action reads "packageManager" (pnpm@10.34.6 in apps/web/package.json, D1/D5).
+#                                     pnpm/setup@v3 is not usable: it installs pnpm 11+ only (its README; spec 12 §6).
+#   astral-sh/setup-uv        v10.2.0 https://github.com/astral-sh/setup-uv/releases/tag/v10.2.0
+#                                     inputs version, python-version, enable-cache, working-directory (README at v10.2.0).
+#                                     setup-uv publishes no moving major tags since v8 (`@v10` does not resolve), so it is
+#                                     pinned to the commit of v10.2.0, the form its README uses.
+#   gitleaks/gitleaks-action  v3.0.0  https://github.com/gitleaks/gitleaks-action/releases/tag/v3.0.0
+#                                     env GITHUB_TOKEN, GITLEAKS_LICENSE (organisation-owned repos only), GITLEAKS_ENABLE_COMMENTS
+#   uv 0.12.24 (latest release)       https://github.com/astral-sh/uv/releases/tag/0.12.24
+name: ci
+
+on:
+  push:
+    branches: [main] # Railway "Wait for CI" needs a push trigger on main
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.12.24"
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "24"
+
+jobs:
+  api:
+    name: api · lint, format, types, architecture, tests, migrations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/api
+    services:
+      postgres:
+        image: postgres:16 # same major as Railway and docker-compose.yml (D12)
+        env:
+          POSTGRES_USER: bayflow
+          POSTGRES_PASSWORD: bayflow
+          POSTGRES_DB: bayflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bayflow -d bayflow"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_ENV: development
+      DATABASE_URL: postgresql://bayflow:bayflow@localhost:5432/bayflow # the CI service container (5434 is for developer machines, D73)
+      JWT_SECRET: ci-placeholder-not-a-real-secret-value # letters and hyphens only: gitleaks allowlists it
+      COOKIE_SECURE: "false"
+      CLIENT_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          working-directory: apps/api
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy app
+      - run: uv run lint-imports
+      - run: uv run pytest --cov=app --cov-report=term-missing # coverage is reported, not enforced (spec 12 §6)
+      - run: uv run alembic upgrade head # migrations apply cleanly to the empty `bayflow` database (tests use bayflow_test)
+      - run: uv run alembic check # models and migrations agree (spec 12 §6 gate; needs the database at head)
+      # P1 gates from spec 12 §6, to add once the code exists: migration round-trip
+      # (`alembic downgrade base && alembic upgrade head`) and 100 % branch coverage of the bookings domain.
+
+  web:
+    name: web · lint, types, format, unit tests, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      API_BASE_URL: http://localhost:4000
+      NEXT_PUBLIC_WS_URL: ws://localhost:4000/api/v1/ws
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6 # no `version`: pnpm comes from "packageManager" only, so the two never disagree
+        with:
+          package_json_file: apps/web/package.json # relative to the repo root; there is no root package.json (D5)
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm # pnpm must already be installed (step above)
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint # eslint . --max-warnings 0 (D80)
+      - run: pnpm typecheck # next typegen && tsc --noEmit (D80)
+      - run: pnpm format:check
+      - run: pnpm test
+      - run: pnpm build
+
+  contract:
+    name: contract · OpenAPI ↔ generated TypeScript client
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      APP_ENV: development
+      DATABASE_URL: postgresql://unused:unused@localhost:5432/unused # the export never connects
+      JWT_SECRET: ci-placeholder-not-a-real-secret-value
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          working-directory: apps/api
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: apps/web/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/web
+      - run: uv sync --locked
+        working-directory: apps/api
+      - run: make gen-api # export_openapi -> openapi.json, then pnpm api:types -> schema.d.ts (D76)
+      - name: Both generated files are committed and current (D76, WEB-07)
+        run: |
+          changes="$(git status --porcelain -- apps/web/src/lib/api)"
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            git --no-pager diff --stat -- apps/web/src/lib/api
+            echo "::error::apps/web/src/lib/api is stale: run 'make gen-api' and commit openapi.json and schema.d.ts"
+            exit 1
+          fi
+
+  secrets:
+    name: secrets · gitleaks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # on pull_request events gitleaks-action lists the PR's commits through the API
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history: every commit is scanned
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # free key, needed only for organisation-owned repos
+          GITLEAKS_ENABLE_COMMENTS: "false" # PR review comments would need pull-requests: write

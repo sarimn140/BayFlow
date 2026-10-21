@@ -1,0 +1,48 @@
+# --- Secrets: never commit real values (brief §9.1) ---
+.env
+.env.*
+!.env.example
+
+# --- Local dev scripts (start.sh / start.bat) ---
+logs/
+.run/
+*.log
+
+# --- Python (apps/api, apps/agent) ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.import_linter_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# --- Node / Next.js (apps/web) ---
+node_modules/
+.pnpm-store/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.eslintcache
+coverage/
+.vercel/
+playwright-report/
+test-results/
+blob-report/
+
+# --- OS and editors ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.idea/
+*.swp
+*~

@@ -1,0 +1,99 @@
+# BayFlow local stack (spec 07 "Local development", D12, D73).
+#
+#   docker compose up -d --wait db                PostgreSQL only (used by ./start.sh, start.bat, make db-up)
+#   docker compose up --build                     everything: db, one-shot migrate + seed, API :4000, web :3000
+#   docker compose --profile mail up -d mailpit   optional local inbox: UI http://localhost:8025, SMTP :1025
+#   docker compose --profile bonus up --build     adds the bonus AI Front Desk worker (apps/agent)
+#
+# Data lives in the named volume `pgdata`. `docker compose down`, ./stop.sh and stop.bat keep it;
+# `make db-reset` wipes the schema; only `docker compose down -v` deletes the volume.
+# The root .env is read automatically for ${...} interpolation (e.g. POSTGRES_HOST_PORT).
+name: bayflow
+
+# The root .env (a copy of .env.example) for the Python services. `required: false` (Compose 2.24+)
+# keeps `docker compose config` and `docker compose up -d db` working before .env exists.
+x-root-env-file: &root-env-file
+  - path: .env
+    required: false
+
+services:
+  db:
+    image: postgres:16 # same major version as Railway and CI (D12); Debian-based like Railway's image
+    environment:
+      POSTGRES_USER: bayflow
+      POSTGRES_PASSWORD: bayflow
+      POSTGRES_DB: bayflow
+    ports:
+      - "${POSTGRES_HOST_PORT:-5434}:5432" # host 5434 by default (D73): 5432/5433 are often taken
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # TCP check (-h 127.0.0.1): on the very first start the image initialises the database with a
+      # temporary socket-only server, so a socket check could report "healthy" before the real server
+      # accepts TCP connections (and the migrate step would then fail on a slow machine).
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U bayflow -d bayflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  migrate: # one-shot: the same command as Railway's pre-deploy step (D13)
+    build: ./apps/api
+    env_file: *root-env-file
+    environment:
+      DATABASE_URL: postgresql://bayflow:bayflow@db:5432/bayflow
+    command: ["/bin/sh", "-c", "alembic upgrade head && python -m app.scripts.seed"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: ./apps/api
+    env_file: *root-env-file
+    environment:
+      DATABASE_URL: postgresql://bayflow:bayflow@db:5432/bayflow
+      PORT: "4000"
+    ports:
+      - "4000:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  web:
+    # No env_file on purpose: the root .env sets PORT=4000 and the standalone server binds to PORT.
+    build:
+      context: ./apps/web
+      args:
+        API_BASE_URL: http://api:4000 # server-side rewrite target inside the Compose network
+        NEXT_PUBLIC_WS_URL: ws://localhost:4000/api/v1/ws # the browser connects through the published port
+        NEXT_PUBLIC_CALL_PROVIDER_URL: ${NEXT_PUBLIC_CALL_PROVIDER_URL:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  mailpit: # optional local inbox: EMAIL_PROVIDER=smtp, SMTP_PORT=1025, SMTP_HOST=mailpit (API in Docker) or localhost
+    image: axllent/mailpit
+    profiles: ["mail"]
+    ports:
+      - "8025:8025" # web UI
+      - "1025:1025" # SMTP
+
+  agent: # bonus AI Front Desk worker (spec 05): docker compose --profile bonus up
+    build: ./apps/agent
+    profiles: ["bonus"]
+    env_file: *root-env-file
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

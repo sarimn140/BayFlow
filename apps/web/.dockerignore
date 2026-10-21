@@ -1,0 +1,15 @@
+# Keep the build context small and secret-free (spec 07).
+node_modules/
+.next/
+out/
+build/
+coverage/
+.env*
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+.pnpm-debug.log*
+.git
+.vercel
+Dockerfile
+.dockerignore

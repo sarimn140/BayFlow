@@ -1,0 +1,25 @@
+# Line endings (spec 01 root layout, spec 07 repository standards).
+# Text files are stored with LF and checked out with LF on every OS, so Prettier/Ruff
+# (end of line = lf) and the bash scripts behave the same after a Windows checkout.
+* text=auto eol=lf
+
+# Shell scripts must keep LF or bash fails with "$'\r': command not found".
+*.sh text eol=lf
+.env.example text eol=lf
+Makefile text eol=lf
+
+# Windows batch files need CRLF: cmd.exe mis-parses labels and blocks in LF-only files.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets: never normalise or diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

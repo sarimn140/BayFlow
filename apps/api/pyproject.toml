@@ -1,0 +1,239 @@
+[project]
+name = "bayflow-api"
+version = "0.1.0"
+description = "BayFlow API: multi-tenant auto repair shop platform (FastAPI modular monolith)."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic>=1.20.0",
+    "asyncpg>=0.32.0",
+    "email-validator>=2.3.0",
+    "fastapi>=0.143.0",
+    "google-genai>=1.0",
+    "httpx>=0.28.1",
+    "limits>=5.8.0",
+    "livekit-api>=1.0",
+    "pwdlib[argon2]>=0.3.1",
+    "pydantic>=2.14.0",
+    "pydantic-settings>=2.15.0",
+    "pyjwt>=2.15.1",
+    "slowapi>=0.1.10",
+    "sqlalchemy[asyncio]>=2.1.4",
+    "tzdata>=2026.5",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "asgi-lifespan>=2.1.0",
+    "httpx>=0.28.1",
+    "import-linter>=2.15",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.10",
+]
+
+[tool.uv]
+# An application, not a library: dependencies are installed, the project itself is not.
+# `app` is imported from the working directory (uvicorn, alembic `prepend_sys_path`, pytest `pythonpath`).
+package = false
+
+# ---------------------------------------------------------------------------
+# Ruff (spec 12 §1.1)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # Pyflakes
+    "I",       # isort
+    "N",       # pep8-naming
+    "UP",      # pyupgrade
+    "B",       # flake8-bugbear
+    "SIM",     # flake8-simplify
+    "C4",      # flake8-comprehensions
+    "RET",     # flake8-return
+    "PERF",    # Perflint
+    "ASYNC",   # flake8-async: blocking calls inside async code
+    "S",       # flake8-bandit: security (incl. S608 string-built SQL)
+    "DTZ",     # flake8-datetimez: naive datetimes
+    "T20",     # flake8-print: no print()
+    "ERA",     # eradicate: no commented-out code
+    "TID",     # flake8-tidy-imports: banned APIs below (TID251)
+    "PGH",     # pygrep-hooks: PGH003 forbids blanket `# type: ignore`
+    "PT",      # flake8-pytest-style
+    "C90",     # mccabe complexity
+    "PL",      # Pylint: size limits below
+    "FAST",    # FastAPI rules
+    "RUF",     # Ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "PLR2004"]  # asserts, fixture passwords, magic numbers
+"app/scripts/seed*.py" = ["S105", "S106"]          # demo credentials are seed data, not logic (D52)
+"app/shared/clock.py" = ["TID251"]                   # the single source of "now" (D63)
+"app/shared/enums.py" = ["S105"]                     # PASS / PASS_QC are enum values, not passwords
+"app/core/errors.py" = ["N818"]                      # spec 01 names the AppError subclasses after the codes
+"alembic/versions/*.py" = ["PLR0915"]                # migrations: one statement per table, index, trigger
+
+[tool.ruff.lint.isort]
+known-third-party = ["alembic"]  # the local alembic/ folder holds migrations, not the package
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 6          # PLR0913
+max-statements = 40   # PLR0915
+max-branches = 12     # PLR0912
+max-returns = 6
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.datetime.now".msg = "Use app.shared.clock.utcnow() or get_clock() (D63; spec 12 §4.4)."
+"datetime.datetime.utcnow".msg = "Use app.shared.clock.utcnow() or get_clock() (D63; spec 12 §4.4)."
+"datetime.date.today".msg = "Use app.shared.clock.utcnow() or get_clock() (D63; spec 12 §4.4)."
+"time.time".msg = "Use app.shared.clock.utcnow() or get_clock() (D63; spec 12 §4.4)."
+"pydantic.EmailStr".msg = "Use the project Email type from app.shared.email (D62)."
+"pydantic.networks.EmailStr".msg = "Use the project Email type from app.shared.email (D62)."
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------------------
+# mypy (spec 12 §1.1)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["app"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------------------
+# pytest (spec 12 §4.2)
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+# importlib mode: test files in different folders may share a basename without __init__.py files.
+addopts = "--strict-markers -ra --import-mode=importlib"
+markers = [
+    "db: uses the PostgreSQL test database (<db>_test); tables truncated after the test",
+    "concurrency: parallel requests through the lock gate",
+    "scenario: multi-step journey; shared invariants asserted at the end",
+    "seed: runs the seed entry point",
+    "slow: > 5 s (action matrix, route sweep); deselect with -m \"not slow\"",
+    "live: runs against WEB_URL / API_URL only when they are set",
+]
+
+# ---------------------------------------------------------------------------
+# import-linter (spec 01 §Dependency rules, incl. spec 12's thin-routers / seed-through-services)
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true        # lets contracts forbid fastapi/sqlalchemy/pydantic
+exclude_type_checking_imports = true    # `if TYPE_CHECKING:` imports do not count
+
+[[tool.importlinter.contracts]]
+id = "app-layers"
+name = "app.main/app.scripts -> app.modules -> app.shared -> app.core"
+type = "layers"
+layers = ["app.main : app.scripts", "app.modules", "app.shared", "app.core"]
+ignore_imports = [                      # rule 8: the only app.shared -> app.modules edges
+    "app.shared.auth -> app.modules.identity.service",
+    "app.shared.auth -> app.modules.shops.service",
+]
+unmatched_ignore_imports_alerting = "warn"
+
+[[tool.importlinter.contracts]]
+id = "module-direction"
+name = "Module dependency direction (acyclic)"
+type = "layers"
+containers = ["app.modules"]
+layers = [
+    "admin",
+    "notifications | reporting | audit",
+    "(calls)",
+    "bookings",
+    "estimates",
+    "inventory | qc | scheduling | ai",
+    "shops",
+    "identity",
+]
+ignore_imports = [                      # rule 8: hides identity.router -> app.shared.auth -> shops.service
+    "app.shared.auth -> app.modules.identity.service",
+    "app.shared.auth -> app.modules.shops.service",
+]
+unmatched_ignore_imports_alerting = "warn"
+
+[[tool.importlinter.contracts]]
+id = "module-internal-layers"
+name = "Inside a module: router -> handlers -> service -> repository -> models -> schemas -> events -> domain"
+type = "layers"
+containers = ["app.modules.*"]
+layers = ["(router)", "(handlers)", "service", "(repository)", "(models)", "schemas", "(events)", "(domain)"]
+
+[[tool.importlinter.contracts]]
+id = "public-surface"
+name = "Modules use only each other's service/schemas/events/domain"
+type = "forbidden"
+source_modules = ["app.modules.*"]
+forbidden_modules = [
+    "app.modules.*.repository",
+    "app.modules.*.models",
+    "app.modules.*.router",
+    "app.modules.*.handlers",
+]
+allow_indirect_imports = true           # bookings.service -> inventory.service -> inventory.repository is fine
+
+[[tool.importlinter.contracts]]
+id = "pure-domain"
+name = "Domain layer is pure Python (enums from app.shared.enums allowed, D74)"
+type = "forbidden"
+source_modules = ["app.modules.*.domain"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "pydantic",
+    "sqlalchemy",
+    "asyncpg",
+    "app.shared",
+    "app.core.config",
+    "app.core.database",
+]
+ignore_imports = ["app.modules.*.domain.* -> app.shared.enums"]   # domain/ is flat: domain/*.py
+unmatched_ignore_imports_alerting = "warn"
+
+[[tool.importlinter.contracts]]
+id = "thin-routers"
+name = "Routers never import a repository or ORM models, not even their own module's (router row)"
+type = "forbidden"
+source_modules = ["app.modules.*.router"]
+forbidden_modules = ["app.modules.*.repository", "app.modules.*.models"]
+allow_indirect_imports = true           # router -> service -> repository is the intended path
+
+[[tool.importlinter.contracts]]
+id = "seed-through-services"
+name = "The seed goes through services only (D51)"
+type = "forbidden"
+source_modules = ["app.scripts"]
+forbidden_modules = ["app.modules.*.repository", "app.modules.*.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+id = "no-module-cycles"
+name = "No dependency cycles between sibling packages"
+type = "acyclic_siblings"
+ancestors = ["app.modules"]
